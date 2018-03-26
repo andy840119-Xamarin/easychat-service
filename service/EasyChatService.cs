@@ -1,8 +1,6 @@
-
 using System;
-using System.Linq;
 using System.Collections.Concurrent;
-using System.IO;
+using System.Linq;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
@@ -13,6 +11,11 @@ namespace easychat
 {
     public class EasyChatService
     {
+        private readonly RequestDelegate requestDelegate;
+
+        private readonly ConcurrentDictionary<string, WebSocket>
+            sockets = new ConcurrentDictionary<string, WebSocket>();
+
         public EasyChatService(RequestDelegate requestDelegate)
         {
             this.requestDelegate = requestDelegate;
@@ -38,7 +41,7 @@ namespace easychat
                     break;
 
                 var message = await GetMessageAsync(socket, token);
-                System.Console.WriteLine($"Received message - {message} at {DateTime.Now}");
+                Console.WriteLine($"Received message - {message} at {DateTime.Now}");
 
                 if (string.IsNullOrEmpty(message))
                 {
@@ -52,17 +55,17 @@ namespace easychat
                     await SendMessageAsync(s.Value, message, token);
             }
 
-            sockets.TryRemove(guid, out WebSocket redundantSocket);
+            sockets.TryRemove(guid, out var redundantSocket);
 
             await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Session ended", token);
             socket.Dispose();
         }
 
-        async Task<string> GetMessageAsync(WebSocket socket, CancellationToken token)
+        private async Task<string> GetMessageAsync(WebSocket socket, CancellationToken token)
         {
             WebSocketReceiveResult result;
             var message = new ArraySegment<byte>(new byte[4096]);
-            string receivedMessage = string.Empty;
+            var receivedMessage = string.Empty;
 
             do
             {
@@ -71,7 +74,6 @@ namespace easychat
                 result = await socket.ReceiveAsync(message, token);
                 var messageBytes = message.Skip(message.Offset).Take(result.Count).ToArray();
                 receivedMessage = Encoding.UTF8.GetString(messageBytes);
-
             } while (!result.EndOfMessage);
 
             if (result.MessageType != WebSocketMessageType.Text)
@@ -80,15 +82,12 @@ namespace easychat
             return receivedMessage;
         }
 
-        Task SendMessageAsync(WebSocket socket, string message, CancellationToken token)
+        private Task SendMessageAsync(WebSocket socket, string message, CancellationToken token)
         {
             var byteMessage = Encoding.UTF8.GetBytes(message);
             var segmnet = new ArraySegment<byte>(byteMessage);
 
             return socket.SendAsync(segmnet, WebSocketMessageType.Text, true, token);
         }
-
-        readonly RequestDelegate requestDelegate;
-        ConcurrentDictionary<string, WebSocket> sockets = new ConcurrentDictionary<string, WebSocket>();
     }
 }
