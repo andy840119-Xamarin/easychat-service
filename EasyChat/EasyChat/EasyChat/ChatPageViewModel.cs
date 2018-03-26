@@ -51,66 +51,79 @@ namespace EasyChat
 
         async void ConnectToServerAsync()
         {
-            
+            try
+            {
 #if __IOS__
             await client.ConnectAsync(new Uri("ws://localhost:5000"), cts.Token);
 #else
-            await client.ConnectAsync(new Uri("ws://10.0.2.2:5000"), cts.Token);
+                await client.ConnectAsync(new Uri("ws://10.0.2.2:5000"), cts.Token);
 #endif
 
-			UpdateClientState();
+                UpdateClientState();
 
-            await Task.Factory.StartNew(async () =>
-            {
-                while (true)
+                await Task.Factory.StartNew(async () =>
                 {
-                    WebSocketReceiveResult result;
-                    var message = new ArraySegment<byte>(new byte[4096]);
-                    do
+                    while (true)
                     {
-                        result = await client.ReceiveAsync(message, cts.Token);
-                        var messageBytes = message.Skip(message.Offset).Take(result.Count).ToArray();
-                        string serialisedMessae = Encoding.UTF8.GetString(messageBytes);
-
-                        try
+                        WebSocketReceiveResult result;
+                        var message = new ArraySegment<byte>(new byte[4096]);
+                        do
                         {
-                            var msg = JsonConvert.DeserializeObject<Message>(serialisedMessae);
-                            Messages.Add(msg);
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"Invalide message format. {ex.Message}");
-                        }
+                            result = await client.ReceiveAsync(message, cts.Token);
+                            var messageBytes = message.Skip(message.Offset).Take(result.Count).ToArray();
+                            string serialisedMessae = Encoding.UTF8.GetString(messageBytes);
 
-                    } while (!result.EndOfMessage);
+                            try
+                            {
+                                var msg = JsonConvert.DeserializeObject<Message>(serialisedMessae);
+                                Messages.Add(msg);
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine($"Invalide message format. {ex.Message}");
+                            }
+
+                        } while (!result.EndOfMessage);
+                    }
+                }, cts.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+
+                void UpdateClientState()
+                {
+                    OnPropertyChanged(nameof(IsConnected));
+                    sendMessageCommand.ChangeCanExecute();
+                    Console.WriteLine($"Websocket state {client.State}");
                 }
-            }, cts.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
-
-            void UpdateClientState()
+            }
+            catch (Exception ex)
             {
-                OnPropertyChanged(nameof(IsConnected));
-                sendMessageCommand.ChangeCanExecute();
-                Console.WriteLine($"Websocket state {client.State}");
+                Console.WriteLine($"ERROR : {ex.Message}");
             }
         }
 
         async void SendMessageAsync(string message)
         {
-            var msg = new Message
+            try
             {
-                Name = username,
-                MessagDateTime = DateTime.Now,
-                Text = message,
-                UserId = CrossDeviceInfo.Current.Id
-            };
+                var msg = new Message
+                {
+                    Name = username,
+                    MessagDateTime = DateTime.Now,
+                    Text = message,
+                    UserId = CrossDeviceInfo.Current.Id
+                };
 
-            string serialisedMessage = JsonConvert.SerializeObject(msg);
+                string serialisedMessage = JsonConvert.SerializeObject(msg);
 
-            var byteMessage = Encoding.UTF8.GetBytes(serialisedMessage);
-            var segmnet = new ArraySegment<byte>(byteMessage);
+                var byteMessage = Encoding.UTF8.GetBytes(serialisedMessage);
+                var segmnet = new ArraySegment<byte>(byteMessage);
 
-            await client.SendAsync(segmnet, WebSocketMessageType.Text, true, cts.Token);
-            MessageText = string.Empty;
+                await client.SendAsync(segmnet, WebSocketMessageType.Text, true, cts.Token);
+                MessageText = string.Empty;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
         }
 
         bool CanSendMessage(string message)
