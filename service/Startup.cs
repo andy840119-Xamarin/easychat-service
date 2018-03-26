@@ -21,6 +21,7 @@ namespace easychat
         public void Configure(IApplicationBuilder app, IHostingEnvironment env)
         {
             app.UseWebSockets();
+            //教學 : https://blog.johnwu.cc/article/asp-net-core-middleware.html
             app.UseMiddleware<EasyChatService>();
             app.Run(async (context) =>
             {

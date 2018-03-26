@@ -11,6 +11,11 @@ using Microsoft.AspNetCore.Http;
 
 namespace easychat
 {
+    /// <summary>
+    /// 有註冊過middleware的物件
+    /// 在每個request都會經過這裡
+    /// https://blog.johnwu.cc/article/asp-net-core-middleware.html
+    /// </summary>
     public class EasyChatService
     {
         public EasyChatService(RequestDelegate requestDelegate)
@@ -18,6 +23,11 @@ namespace easychat
             this.requestDelegate = requestDelegate;
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="context"></param>
+        /// <returns></returns>
         public async Task Invoke(HttpContext context)
         {
             if (!context.WebSockets.IsWebSocketRequest)
