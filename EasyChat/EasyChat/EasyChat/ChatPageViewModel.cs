@@ -54,7 +54,7 @@ namespace EasyChat
             try
             {
 #if __IOS__
-            await client.ConnectAsync(new Uri("ws://localhost:5000"), cts.Token);
+                await client.ConnectAsync(new Uri("ws://localhost:5000"), cts.Token);
 #else
                 await client.ConnectAsync(new Uri("ws://10.0.2.2:5000"), cts.Token);
 #endif
