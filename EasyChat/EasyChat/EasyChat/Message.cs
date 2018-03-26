@@ -1,7 +1,4 @@
 ﻿using System;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
-using Xamarin.Forms;
 using Plugin.DeviceInfo;
 
 namespace EasyChat
@@ -17,4 +14,3 @@ namespace EasyChat
         public string UserId { get; set; }
     }
 }
-

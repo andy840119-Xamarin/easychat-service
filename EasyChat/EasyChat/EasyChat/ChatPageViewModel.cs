@@ -7,20 +7,27 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Xamarin.Forms;
-using Plugin.DeviceInfo;
 using Newtonsoft.Json;
+using Plugin.DeviceInfo;
+using Xamarin.Forms;
 
 namespace EasyChat
 {
     public sealed class ChatPageViewModel : INotifyPropertyChanged
     {
+        private readonly ClientWebSocket client;
+        private readonly CancellationTokenSource cts;
+        private readonly string username;
+        private string messageText;
+
+
+        private Command<string> sendMessageCommand;
 
         public ChatPageViewModel(string username)
         {
             client = new ClientWebSocket();
             cts = new CancellationTokenSource();
-            messages = new ObservableCollection<Message>();
+            Messages = new ObservableCollection<Message>();
 
             this.username = username;
 
@@ -30,16 +37,13 @@ namespace EasyChat
         public bool IsConnected => client.State == WebSocketState.Open;
 
         public Command SendMessage => sendMessageCommand ??
-            (sendMessageCommand = new Command<string>(SendMessageAsync, CanSendMessage));
+                                      (sendMessageCommand = new Command<string>(SendMessageAsync, CanSendMessage));
 
-        public ObservableCollection<Message> Messages => messages;
+        public ObservableCollection<Message> Messages { get; }
 
         public string MessageText
         {
-            get
-            {
-                return messageText;
-            }
+            get => messageText;
             set
             {
                 messageText = value;
@@ -49,7 +53,9 @@ namespace EasyChat
             }
         }
 
-        async void ConnectToServerAsync()
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        private async void ConnectToServerAsync()
         {
             try
             {
@@ -71,7 +77,7 @@ namespace EasyChat
                         {
                             result = await client.ReceiveAsync(message, cts.Token);
                             var messageBytes = message.Skip(message.Offset).Take(result.Count).ToArray();
-                            string serialisedMessae = Encoding.UTF8.GetString(messageBytes);
+                            var serialisedMessae = Encoding.UTF8.GetString(messageBytes);
 
                             try
                             {
@@ -82,7 +88,6 @@ namespace EasyChat
                             {
                                 Console.WriteLine($"Invalide message format. {ex.Message}");
                             }
-
                         } while (!result.EndOfMessage);
                     }
                 }, cts.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
@@ -100,7 +105,7 @@ namespace EasyChat
             }
         }
 
-        async void SendMessageAsync(string message)
+        private async void SendMessageAsync(string message)
         {
             try
             {
@@ -112,7 +117,7 @@ namespace EasyChat
                     UserId = CrossDeviceInfo.Current.Id
                 };
 
-                string serialisedMessage = JsonConvert.SerializeObject(msg);
+                var serialisedMessage = JsonConvert.SerializeObject(msg);
 
                 var byteMessage = Encoding.UTF8.GetBytes(serialisedMessage);
                 var segmnet = new ArraySegment<byte>(byteMessage);
@@ -126,25 +131,14 @@ namespace EasyChat
             }
         }
 
-        bool CanSendMessage(string message)
+        private bool CanSendMessage(string message)
         {
             return IsConnected && !string.IsNullOrEmpty(message);
         }
 
-        public event PropertyChangedEventHandler PropertyChanged;
-
-        void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        private void OnPropertyChanged([CallerMemberName] string propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
-
-        readonly ClientWebSocket client;
-        readonly CancellationTokenSource cts;
-        readonly string username;
-
-
-        Command<string> sendMessageCommand;
-        ObservableCollection<Message> messages;
-        string messageText;
     }
 }
